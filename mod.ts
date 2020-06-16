@@ -1,6 +1,7 @@
-import { builtins } from "./builtin.ts";
-import { replaceExpansions } from "./expansions.ts";
 import { getLine, runProcess, write, writeLine } from "./util.ts";
+import { parseCommandArgs } from "./parser.ts";
+import { replaceExpansions } from "./expansions.ts";
+import { builtins } from "./builtin.ts";
 
 let signalPromise = Deno.signal(Deno.Signal.SIGINT);
 
@@ -21,9 +22,7 @@ while (true) {
     Deno.exit(0);
   }
 
-  const args = replaceExpansions(line)
-    .trim()
-    .split(" ");
+  const args = parseCommandArgs(replaceExpansions(line.trim()))
 
   if (args[0] === "") continue;
 
