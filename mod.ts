@@ -12,13 +12,13 @@ while (true) {
   // check for SIGINT (ctrl-c)
   if (line === undefined) {
     signalPromise = Deno.signal(Deno.Signal.SIGINT);
-    await writeLine("");
+    await writeLine();
     continue;
   }
 
   // Check for EOF (ctrl-d)
   if (line.length === 0) {
-    await writeLine("");
+    await writeLine();
     Deno.exit(0);
   }
 
