@@ -1,4 +1,4 @@
-import { getLine, runProcess, write, writeLine } from "./util.ts";
+import { getLine, write, writeLine } from "./util.ts";
 import { parseCommandArgs } from "./parser.ts";
 import { replaceExpansions } from "./expansions.ts";
 import { builtins } from "./builtin.ts";
@@ -35,7 +35,7 @@ while (true) {
     }
 
     // everything else lol
-    const process = runProcess(args);
+      const process = Deno.run({ cmd: args });
     await process.status();
     
   } catch (e) {

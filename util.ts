@@ -6,10 +6,6 @@ export function getLine() {
     .then((value) => decode(value));
 }
 
-export function runProcess(cmd: string[]) {
-  return Deno.run({ cmd });
-}
-
 export async function write(text: string, output: Deno.Writer = Deno.stdout) {
   return output.write(encode(text));
 }
