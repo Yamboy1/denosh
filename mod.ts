@@ -2,6 +2,7 @@ import { getLine, write, writeLine } from "./util.ts";
 import { parseCommandArgs } from "./parser.ts";
 import { replaceExpansions } from "./expansions.ts";
 import { builtins } from "./builtin.ts";
+import { pipe } from "./pipe.ts";
 
 let signalPromise = Deno.signal(Deno.Signal.SIGINT);
 
@@ -22,12 +23,16 @@ while (true) {
     Deno.exit(0);
   }
 
-  const args = parseCommandArgs(replaceExpansions(line.trim()))
+  const pipeArgs = parseCommandArgs(replaceExpansions(line.trim()))
 
-  if (args[0] === "") continue;
+  if (pipeArgs[0][0] === "") continue;
 
-  try {
+  // final command status
+  let status;
+  if (pipeArgs.length === 1) {
+    const [args] = pipeArgs;
 
+    try {
     // built-in commands such as cd
     if (builtins.has(args[0])) {
       builtins.get(args[0])?.(args);
@@ -36,9 +41,28 @@ while (true) {
 
     // everything else lol
       const process = Deno.run({ cmd: args });
-    await process.status();
+      status = await process.status();
     
   } catch (e) {
     await writeLine(e, Deno.stderr);
+  }
+  } else {
+    // note, builtin commands don't work in pipes
+    const processes = pipeArgs.map(args =>
+      Deno.run({
+        cmd: args,
+        stdin: "piped",
+        stdout: "piped"
+      }));
+
+    // hook up the pipe to stdin and stdout
+    Deno.copy(Deno.stdin, processes[0].stdin)
+      .then(() => processes[0].stdin.close());
+    Deno.copy(processes[processes.length-1].stdout, Deno.stdout)
+
+    // pipe the processes together, and wait for
+    // the final one to complete
+    pipe(...processes);
+    status = await processes[processes.length-1].status();
   }
 }
