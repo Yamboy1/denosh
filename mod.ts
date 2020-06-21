@@ -33,19 +33,19 @@ while (true) {
     const [args] = pipeArgs;
 
     try {
-    // built-in commands such as cd
-    if (builtins.has(args[0])) {
-      builtins.get(args[0])?.(args);
-      continue;
-    }
+      // built-in commands such as cd
+      if (builtins.has(args[0])) {
+        builtins.get(args[0])?.(args);
+        continue;
+      }
 
-    // everything else lol
+      // everything else lol
       const process = Deno.run({ cmd: args });
       status = await process.status();
-    
-  } catch (e) {
-    await writeLine(e, Deno.stderr);
-  }
+      
+    } catch (e) {
+      await writeLine(e, Deno.stderr);
+    }
   } else {
     // note, builtin commands don't work in pipes
     const processes = pipeArgs.map(args =>
@@ -64,5 +64,11 @@ while (true) {
     // the final one to complete
     pipe(...processes);
     status = await processes[processes.length-1].status();
+  }
+
+  if (status?.success === false) {
+    if (status.signal === Deno.Signal.SIGINT)
+      await writeLine();
+      continue;
   }
 }
