@@ -1,0 +1,10 @@
+name: deno_shell
+description: A shell written in deno
+version: 0.1.0
+repository: https://github.com/Yamboy1/deno-shell
+stable: false
+unlisted: true
+files:
+  - ./*.ts
+  - '*.md'
+  - LICENSE
