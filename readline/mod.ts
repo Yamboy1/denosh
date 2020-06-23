@@ -17,7 +17,6 @@ async function getLine() {
   let curPos = 0;
 
   for await(const chunk of Deno.iter(Deno.stdin)) {
-    await Deno.writeFile("test", encode(input.join("")));
     const decoded = decode(chunk);
 
     // ANSI control sequences
