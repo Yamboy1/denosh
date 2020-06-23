@@ -1,6 +1,6 @@
 import { ESC } from "./ascii.ts";
 
-const CSI = "["
+const CSI = "[";
 
 export function control(code: string, n?: number) {
   return `${ESC}${CSI}${n ?? ""}${code}`;
