@@ -28,10 +28,13 @@ export class EOFError extends ReadlineError {
     super("EOF");
   }
 }
+
+export async function getLine(prompt: string = "") {
   Deno.setRaw(0, true);
-  await Deno.writeFile("a", encode("asdf"));
   const input: string[] = [];
   let curPos = 0;
+
+  await write(prompt);
 
   for await (const chunk of Deno.iter(Deno.stdin)) {
     const decoded = decode(chunk);
@@ -106,9 +109,10 @@ export class EOFError extends ReadlineError {
 
     await write(clearLine());
     await write(cursorHorizPosition());
+    await write(prompt);
     await write(input.join(""));
     // Ansi escapes are 1-indexed
-    await write(cursorHorizPosition(curPos + 1));
+    await write(cursorHorizPosition(prompt.length + curPos + 1));
   }
   return "";
 }
