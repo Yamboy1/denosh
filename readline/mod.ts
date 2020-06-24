@@ -9,15 +9,25 @@ import {
 } from "./ansi.ts";
 import { ETX, LF, CR, EOT, ESC, BS, DEL } from "./ascii.ts";
 
-type InvalidCharacter = "EOF" | "Interrupted";
+export type InvalidCharacter = "EOF" | "Interrupted";
 
-class ReadlineError extends Error {
+export class ReadlineError extends Error {
   constructor(char: InvalidCharacter) {
     super(`Readline Error: ${char}`);
   }
 }
 
-async function getLine() {
+export class InterruptedError extends ReadlineError {
+  constructor() {
+    super("Interrupted");
+  }
+}
+
+export class EOFError extends ReadlineError {
+  constructor() {
+    super("EOF");
+  }
+}
   Deno.setRaw(0, true);
   await Deno.writeFile("a", encode("asdf"));
   const input: string[] = [];
@@ -59,13 +69,13 @@ async function getLine() {
 
         case ETX:
           await resetTerminal();
-          throw new ReadlineError("Interrupted");
+          throw new InterruptedError();
 
         // EOT (ctrl-d): https://en.wikipedia.org/wiki/End-of-Transmission_character
 
         case EOT:
           await resetTerminal();
-          throw new ReadlineError("EOF");
+          throw new EOFError();
 
         // Note that DEL is mapped to backspace not delete on most terminals
 
@@ -100,6 +110,7 @@ async function getLine() {
     // Ansi escapes are 1-indexed
     await write(cursorHorizPosition(curPos + 1));
   }
+  return "";
 }
 
 async function resetTerminal() {
