@@ -1,26 +1,27 @@
-import { getLine, write, writeLine } from "./util.ts";
+import { write, writeLine } from "./util.ts";
 import { parseCommandArgs } from "./parser.ts";
 import { replaceExpansions } from "./expansions.ts";
 import { builtins } from "./builtin.ts";
 import { pipe } from "./pipe.ts";
-
-let signalPromise = Deno.signal(Deno.Signal.SIGINT);
+import { getLine, InterruptedError, EOFError } from "./readline/mod.ts"
 
 while (true) {
-  await write(`${Deno.cwd()}> `);
-  const line = await Promise.race([getLine(), signalPromise]);
-
-  // check for SIGINT (ctrl-c)
-  if (line === undefined) {
-    signalPromise = Deno.signal(Deno.Signal.SIGINT);
-    await writeLine();
-    continue;
-  }
-
-  // Check for EOF (ctrl-d)
-  if (line.length === 0) {
-    await writeLine();
-    Deno.exit(0);
+  let line;
+  try {
+    line = await getLine(`${Deno.cwd()}> `);
+  } catch (e) {
+    if (e instanceof InterruptedError) {
+      // On a ctrl-c, just continue the repl
+      await writeLine();
+      continue;
+    } else if (e instanceof EOFError) {
+      // On a ctrl-d, quit the shell
+      await writeLine();
+      Deno.exit(0);
+    } else {
+      await writeLine(`An internal error occurred${e}`, Deno.stderr);
+      continue;
+    }
   }
 
   const pipeArgs = parseCommandArgs(replaceExpansions(line.trim()))
