@@ -12,11 +12,9 @@ while (true) {
   } catch (e) {
     if (e instanceof InterruptedError) {
       // On a ctrl-c, just continue the repl
-      await writeLine();
       continue;
     } else if (e instanceof EOFError) {
       // On a ctrl-d, quit the shell
-      await writeLine();
       Deno.exit(0);
     } else {
       await writeLine(`An internal error occurred${e}`, Deno.stderr);
@@ -26,7 +24,7 @@ while (true) {
 
   const pipeArgs = parseCommandArgs(replaceExpansions(line.trim()))
 
-  if (pipeArgs[0][0] === "") continue;
+  if (!pipeArgs[0]?.[0]) continue;
 
   // final command status
   let status;
