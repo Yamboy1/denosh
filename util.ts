@@ -1,10 +1,4 @@
-import { encode, decode } from "./codec.ts";
-
-export function getLine() {
-  return Deno.iter(Deno.stdin).next()
-    .then(({ value }) => value as Uint8Array)
-    .then((value) => decode(value));
-}
+import { encode } from "./codec.ts";
 
 export async function write(
   text: string = "",
