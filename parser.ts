@@ -18,7 +18,7 @@ export function parseCommandArgs(input: string): string[][] {
         startIndex = i + 1;
       }
     }
-    
+
     if (char === "'" || char === '"') {
       currentQuote = currentQuote ? null : char;
     }
