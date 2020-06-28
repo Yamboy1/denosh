@@ -2,7 +2,7 @@ import { writeLine } from "./util.ts";
 
 function changeDir([, directory]: string[]) {
   // input, or home dir, or current dir
-  Deno.chdir(directory || (Deno.dir("home") ?? "."));
+  Deno.chdir(directory || Deno.env.get("HOME") || ".");
 }
 
 function exit([, code = "0"]: string[]) {
