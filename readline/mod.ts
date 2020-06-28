@@ -1,4 +1,4 @@
-import { decode, encode } from "../codec.ts";
+import { decode } from "../codec.ts";
 import { write, writeLine } from "../util.ts";
 import {
   cursorForward,
