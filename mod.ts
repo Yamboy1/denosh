@@ -30,6 +30,7 @@ while (true) {
 
   const pipeArgs = parseCommandArgs(replaceExpansions(line.trim()));
 
+  // Check that there is a command name
   if (!pipeArgs[0]?.[0]) continue;
 
   const processes = pipeArgs.map((args) => {
@@ -54,10 +55,7 @@ while (true) {
   
   const status = await processes[processes.length - 1].status();
 
-  if (status?.success === false) {
-    if (status.signal === Deno.Signal.SIGINT) {
-      await writeLine();
-    }
-    continue;
+  if (status.signal === Deno.Signal.SIGINT) {
+    await writeLine();
   }
 }
