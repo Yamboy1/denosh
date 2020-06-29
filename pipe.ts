@@ -1,8 +1,6 @@
-export function pipe(
-  ...processes: Deno.Process<
-    { cmd: string[]; stdout: "piped"; stdin: "piped" }
-  >[]
-) {
+import { ProcessLike } from "./builtin.ts";
+
+export function pipe(...processes: ProcessLike[]) {
   // there needs to be an input and output
   // element at all times
   while (processes.length > 1) {
