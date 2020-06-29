@@ -8,7 +8,7 @@ import { getLine, InterruptedError, EOFError } from "./readline/mod.ts";
 (async () => {
   // When interrupting a process, the shells gets a sigint as well,
   // and this closes the shell, so we need to stop this.
-  for await (const _ of Deno.signal(Deno.Signal.SIGINT)) {}  
+  for await (const _ of Deno.signal(Deno.Signal.SIGINT)) {}
 })();
 
 while (true) {
@@ -34,13 +34,13 @@ while (true) {
   if (!pipeArgs[0]?.[0]) continue;
 
   const processes = pipeArgs.map((args) => {
-    return runBuiltin(args) ?? 
+    return runBuiltin(args) ??
       Deno.run({
         cmd: args,
         stdin: "piped",
         stdout: "piped",
         stderr: "piped",
-      })
+      });
   });
 
   // hook up the pipe to stdin and stdout
@@ -52,7 +52,7 @@ while (true) {
   // pipe the processes together, and wait for
   // the final one to complete
   pipe(...processes);
-  
+
   const status = await processes[processes.length - 1].status();
 
   if (status.signal === Deno.Signal.SIGINT) {
