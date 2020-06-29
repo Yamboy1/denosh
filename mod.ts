@@ -1,7 +1,7 @@
 import { writeLine } from "./util.ts";
 import { parseCommandArgs } from "./parser.ts";
 import { replaceExpansions } from "./expansions.ts";
-import { runBuiltin } from "./builtin.ts";
+import { runBuiltin, ProcessLike } from "./builtin.ts";
 import { pipe } from "./pipe.ts";
 import { getLine, InterruptedError, EOFError } from "./readline/mod.ts";
 
@@ -11,6 +11,7 @@ import { getLine, InterruptedError, EOFError } from "./readline/mod.ts";
   for await (const _ of Deno.signal(Deno.Signal.SIGINT)) {}
 })();
 
+main:
 while (true) {
   let line;
   try {
@@ -18,14 +19,13 @@ while (true) {
   } catch (e) {
     if (e instanceof InterruptedError) {
       // On a ctrl-c, just continue the repl
-      continue;
     } else if (e instanceof EOFError) {
       // On a ctrl-d, quit the shell
       Deno.exit(0);
     } else {
       await writeLine(`An internal error occurred: ${e}`, Deno.stderr);
-      continue;
     }
+    continue;
   }
 
   const pipeArgs = parseCommandArgs(replaceExpansions(line.trim()));
@@ -33,15 +33,27 @@ while (true) {
   // Check that there is a command name
   if (!pipeArgs[0]?.[0]) continue;
 
-  const processes = pipeArgs.map((args) => {
-    return runBuiltin(args) ??
-      Deno.run({
-        cmd: args,
-        stdin: "piped",
-        stdout: "piped",
-        stderr: "piped",
-      });
-  });
+  let processes: ProcessLike[] = [];
+  for await (const args of pipeArgs) {
+    try {
+      processes.push(
+        runBuiltin(args) ??
+        Deno.run({
+          cmd: args,
+          stdin: "piped",
+          stdout: "piped",
+          stderr: "piped",
+        })
+      );
+    } catch (e) {
+      if (e instanceof Deno.errors.NotFound) {
+        await writeLine(`denosh: command not found: ${args[0]}`);
+      } else {
+        await writeLine(`denosh: an unexpected error has occured`)
+      }
+      continue main;
+    }
+  }
 
   // hook up the pipe to stdin and stdout
   Deno.copy(Deno.stdin, processes[0].stdin)

@@ -2,7 +2,7 @@ import {
   fromStreamWriter,
   fromStreamReader,
 } from "https://deno.land/std@a829fa8/io/streams.ts";
-import { writeLine, write } from "./util.ts";
+import { writeLine } from "./util.ts";
 
 export interface ProcessLike {
   stdin: Deno.Writer & Deno.Closer;
@@ -13,7 +13,6 @@ export interface ProcessLike {
 
 export function runBuiltin(args: string[]): ProcessLike | undefined {
   const {
-    // reader: stdin,
     writer: stdinWriter,
   } = fromTransformStream(new TransformStream());
 
@@ -37,12 +36,25 @@ export function runBuiltin(args: string[]): ProcessLike | undefined {
 
         if (!newDir) {
           await writeLine(
-            "Error: Could not detect home directory, please set your $HOME env var",
+            "cd: could not detect home directory, please set your $HOME env var",
             stderr,
           );
           return { success: false, code: 2 };
         }
-        Deno.chdir(args[1] || Deno.env.get("HOME") || ".");
+        try {
+          Deno.chdir(newDir);
+        } catch (e) {
+          if (e instanceof Deno.errors.NotFound) {
+            await writeLine(`cd: file or directory not found: ${newDir}`, stderr);
+          } else if (e.message === "Not a directory (os error 20)") {
+            await writeLine(`cd: not a directory: ${newDir}`, stderr);
+          } else if (e instanceof Deno.errors.PermissionDenied) {
+            await writeLine(`cd: permission denied: ${newDir}`, stderr);
+          } else {
+            await writeLine(`cd: an error occured: ${e.message}`);
+          }
+          return { success: false, code: 2 };
+        }
         return { success: true, code: 0, signal: undefined };
       };
       break;
