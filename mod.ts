@@ -5,6 +5,12 @@ import { builtins } from "./builtin.ts";
 import { pipe } from "./pipe.ts";
 import { getLine, InterruptedError, EOFError } from "./readline/mod.ts";
 
+(async () => {
+  // When interrupting a process, the shells gets a sigint as well,
+  // and this closes the shell, so we need to stop this.
+  for await (const _ of Deno.signal(Deno.Signal.SIGINT)) {}  
+})();
+
 while (true) {
   let line;
   try {
