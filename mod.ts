@@ -23,7 +23,7 @@ while (true) {
       // On a ctrl-d, quit the shell
       Deno.exit(0);
     } else {
-      await writeLine(`An internal error occurred${e}`, Deno.stderr);
+      await writeLine(`An internal error occurred: ${e}`, Deno.stderr);
       continue;
     }
   }
