@@ -16,7 +16,7 @@ export function pipe(...processes: ProcessLike[]) {
     }
 
     Deno.copy(p1.stdout, p2.stdin)
-      .then(() => p2.stdin.close());
+      .then(() => p2.stdin?.close());
 
     processes.shift();
   }

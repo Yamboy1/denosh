@@ -23,7 +23,10 @@ while (true) {
       // On a ctrl-d, quit the shell
       Deno.exit(0);
     } else {
-      await writeLine(`An internal error occurred: ${e}`, Deno.stderr);
+      await writeLine(
+        `denosh: a readline error has occurred: ${e.message}`,
+        Deno.stderr,
+      );
     }
     continue;
   }
@@ -33,36 +36,42 @@ while (true) {
   // Check that there is a command name
   if (!pipeArgs[0]?.[0]) continue;
 
+  let i = 0;
   let processes: ProcessLike[] = [];
   for await (const args of pipeArgs) {
     try {
       processes.push(
-        runBuiltin(args) ??
+        runBuiltin({
+          cmd: args,
+          // The first process should inherit from stdin
+          stdin: i === 0 ? "inherit" : "piped",
+          // The last process should inherit from stdout
+          stdout: i === pipeArgs.length - 1 ? "inherit" : "piped",
+          stderr: i === pipeArgs.length - 1 ? "inherit" : "piped",
+        }) ??
         Deno.run({
           cmd: args,
-          stdin: "piped",
-          stdout: "piped",
-          stderr: "piped",
-        })
+          // The first process should inherit from stdin
+          stdin: i === 0 ? "inherit" : "piped",
+          // The last process should inherit from stdout
+          stdout: i === pipeArgs.length - 1 ? "inherit" : "piped",
+          stderr: i === pipeArgs.length - 1 ? "inherit" : "piped",
+        }),
       );
     } catch (e) {
       if (e instanceof Deno.errors.NotFound) {
-        await writeLine(`denosh: command not found: ${args[0]}`);
+        await writeLine(`denosh: command not found: ${args[0]}`, Deno.stderr);
       } else {
-        await writeLine(`denosh: an unexpected error has occured`)
+        await writeLine(
+          `denosh: an internal error has occured: ${e.message}`,
+          Deno.stderr,
+        );
       }
       continue main;
     }
+    i++;
   }
 
-  // hook up the pipe to stdin and stdout
-  Deno.copy(Deno.stdin, processes[0].stdin)
-    .then(() => processes[0].stdin.close());
-  Deno.copy(processes[processes.length - 1].stdout, Deno.stdout);
-  Deno.copy(processes[processes.length - 1].stderr, Deno.stderr);
-
-  // pipe the processes together, and wait for
-  // the final one to complete
   pipe(...processes);
 
   const status = await processes[processes.length - 1].status();

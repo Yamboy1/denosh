@@ -5,63 +5,87 @@ import {
 import { writeLine } from "./util.ts";
 
 export interface ProcessLike {
-  stdin: Deno.Writer & Deno.Closer;
-  stdout: Deno.Reader & Deno.Closer;
-  stderr: Deno.Reader & Deno.Closer;
+  stdin: Deno.Writer & Deno.Closer | null;
+  stdout: Deno.Reader & Deno.Closer | null;
+  stderr: Deno.Reader & Deno.Closer | null;
   status(): Promise<Deno.ProcessStatus>;
 }
 
-export function runBuiltin(args: string[]): ProcessLike | undefined {
-  const {
-    writer: stdinWriter,
-  } = fromTransformStream(new TransformStream());
+interface RunBuiltinOptions {
+  cmd: string[],
+  stdin?: "inherit" | "piped";
+  stdout?: "inherit" | "piped";
+  stderr?: "inherit" | "piped";
+}
 
-  const {
-    reader: stderrReader,
-    writer: stderr,
-  } = fromTransformStream(new TransformStream());
+export function runBuiltin(opts: RunBuiltinOptions): ProcessLike | undefined {
+  let stdinReader: Deno.Reader & Deno.Closer & Partial<AsyncCloser> = Deno.stdin;
+  let stdinWriter: (Deno.Writer & Deno.Closer & Partial<AsyncCloser>) | null = null;
 
-  const {
-    reader: stdoutReader,
-    writer: stdout,
-  } = fromTransformStream(new TransformStream());
+  let stdoutWriter: Deno.Writer & Deno.Closer & Partial<AsyncCloser> = Deno.stdout;
+  let stdoutReader: (Deno.Reader & Deno.Closer & Partial<AsyncCloser>) | null = null;
+
+  let stderrWriter: Deno.Writer & Deno.Closer & Partial<AsyncCloser> = Deno.stderr;
+  let stderrReader: (Deno.Reader & Deno.Closer & Partial<AsyncCloser>) | null = null;
+
+  if (opts.stdin === "piped") {
+    const stream = fromTransformStream(new TransformStream());
+    stdinReader = stream.reader;
+    stdinWriter = stream.writer;
+  }
+
+  if (opts.stdout === "piped") {
+    const stream = fromTransformStream(new TransformStream());
+    stdoutWriter = stream.writer;
+    stdoutReader = stream.reader;
+  }
+
+  if (opts.stderr === "piped") {
+    const stream = fromTransformStream(new TransformStream());
+    stderrWriter = stream.writer;
+    stderrReader = stream.reader;
+  }
 
   let status: () => Promise<Deno.ProcessStatus>;
 
-  switch (args[0]) {
+  switch (opts.cmd[0]) {
     case "cd":
       status = async () => {
         // input, or home dir, or current dir
-        const newDir = args[1] || Deno.env.get("HOME") || null;
+        const newDir = opts.cmd[1] || Deno.env.get("HOME") || null;
 
         if (!newDir) {
           await writeLine(
             "cd: could not detect home directory, please set your $HOME env var",
-            stderr,
+            stderrWriter,
           );
           return { success: false, code: 2 };
         }
+
         try {
           Deno.chdir(newDir);
         } catch (e) {
           if (e instanceof Deno.errors.NotFound) {
-            await writeLine(`cd: file or directory not found: ${newDir}`, stderr);
+            await writeLine(
+              `cd: file or directory not found: ${newDir}`,
+              stderrWriter,
+            );
           } else if (e.message === "Not a directory (os error 20)") {
-            await writeLine(`cd: not a directory: ${newDir}`, stderr);
+            await writeLine(`cd: not a directory: ${newDir}`, stderrWriter);
           } else if (e instanceof Deno.errors.PermissionDenied) {
-            await writeLine(`cd: permission denied: ${newDir}`, stderr);
+            await writeLine(`cd: permission denied: ${newDir}`, stderrWriter);
           } else {
             await writeLine(`cd: an error occured: ${e.message}`);
           }
           return { success: false, code: 2 };
         }
-        return { success: true, code: 0, signal: undefined };
+        return { success: true, code: 0 };
       };
       break;
 
     case "exit":
       status = async () => {
-        Deno.exit(Number(args[1]) || 0);
+        Deno.exit(Number(opts.cmd[1]) || 0);
       };
       break;
 
@@ -74,13 +98,13 @@ export function runBuiltin(args: string[]): ProcessLike | undefined {
     stdout: stdoutReader,
     stderr: stderrReader,
     status: async () => {
-      return status()
-        .catch(async (e) => {
-          writeLine(e.toString(), stderr);
-          return { success: false, code: 2 } as const;
-        })
-        .then(async (x) => (stderr.closeAsync(), x))
-        .then(async (x) => (stdout.closeAsync(), x));
+      const result = await status();
+
+      // Only close streams, not external resources...
+      stdoutWriter.closeAsync?.();
+      stderrWriter.closeAsync?.();
+
+      return result;
     },
   };
 }
